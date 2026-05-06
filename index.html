@@ -7,23 +7,25 @@
 <style>
   :root { --bg:#121213; --fg:#eaeaea; --tile:#3a3a3c; --border:#565758; --green:#538d4e; --yellow:#b59f3b; --key:#818384; }
   body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--fg); display:flex; min-height:100vh; align-items:center; justify-content:center; }
-  .app { width:min(100%, 420px); padding:16px; box-sizing:border-box; }
+  .app { width:min(100%, 520px); padding:16px; box-sizing:border-box; }
   h1 { margin:0 0 8px; font-size:28px; text-align:center; letter-spacing:.05em; }
   .sub { text-align:center; color:#b5b5b5; margin-bottom:14px; font-size:14px; }
-  .board { display:grid; grid-template-rows: repeat(6, 1fr); gap:6px; margin:0 auto 16px; width:100%; aspect-ratio: 1 / 1.2; }
-  .row { display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; }
-  .tile { border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:700; text-transform:uppercase; user-select:none; background:transparent; }
+  .board { display:grid; gap:6px; margin:0 auto 16px; width:100%; justify-content:center; }
+  .row { display:grid; gap:6px; }
+  .tile { width:56px; height:56px; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:700; text-transform:uppercase; user-select:none; background:transparent; }
   .filled { border-color:#878a8c; }
   .correct { background:var(--green); border-color:var(--green); color:white; }
   .present { background:var(--yellow); border-color:var(--yellow); color:white; }
   .absent { background:#3a3a3c; border-color:#3a3a3c; color:white; }
-  .keyboard { display:grid; gap:8px; }
-  .keyrow { display:flex; gap:6px; justify-content:center; }
-  button.key { border:0; border-radius:6px; padding:14px 10px; min-width:32px; background:var(--key); color:white; font-weight:700; cursor:pointer; text-transform:uppercase; }
-  button.key.wide { min-width:56px; }
+  .keyboard { display:flex; flex-direction:column; gap:8px; align-items:center; }
+  .keyrow { display:flex; gap:6px; justify-content:center; width:100%; }
+  button.key { border:0; border-radius:4px; padding:14px 10px; min-width:34px; background:var(--key); color:white; font-weight:700; cursor:pointer; text-transform:uppercase; }
+  button.key.wide { min-width:64px; }
   button.key:active { transform:translateY(1px); }
   .msg { min-height:24px; text-align:center; margin:10px 0 12px; color:#d7d7d7; }
-  .footer { text-align:center; margin-top:12px; color:#9aa0a6; font-size:13px; }
+  .refreshWrap { display:flex; justify-content:center; margin-top:14px; }
+  .refresh { border:0; border-radius:999px; padding:12px 18px; background:#1f1f22; color:white; font-weight:700; cursor:pointer; }
+  .footer { text-align:center; margin-top:10px; color:#9aa0a6; font-size:13px; }
 </style>
 </head>
 <body>
@@ -33,6 +35,7 @@
   <div id="board" class="board"></div>
   <div id="msg" class="msg"></div>
   <div id="keyboard" class="keyboard"></div>
+  <div class="refreshWrap"><button class="refresh" id="refreshBtn">New game</button></div>
   <div class="footer">Today's name changes every day</div>
 </div>
 <script>
@@ -43,22 +46,30 @@ let row = 0, col = 0, over = false;
 const board = document.getElementById('board');
 const msg = document.getElementById('msg');
 const keyboard = document.getElementById('keyboard');
-const rows = [];
+const refreshBtn = document.getElementById('refreshBtn');
+let maxLen = answer.length;
+let rows = [];
 function makeBoard(){
+  board.innerHTML='';
+  board.style.gridTemplateRows = `repeat(6, 1fr)`;
+  board.style.width = `${maxLen * 62 - 6}px`;
+  rows = [];
   for(let r=0;r<6;r++){
     const rowEl = document.createElement('div'); rowEl.className='row';
+    rowEl.style.gridTemplateColumns = `repeat(${maxLen}, 1fr)`;
     const tiles=[];
-    for(let c=0;c<5;c++){
+    for(let c=0;c<maxLen;c++){
       const t = document.createElement('div'); t.className='tile'; rowEl.appendChild(t); tiles.push(t);
     }
     board.appendChild(rowEl); rows.push(tiles);
   }
 }
 function makeKeyboard(){
-  const layout = ['QWERTYUIOP','ASDFGHJKL','ENTERZXCVBNM⌫'];
+  keyboard.innerHTML='';
+  const layout = [['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['ENTER','Z','X','C','V','B','N','M','⌫']];
   layout.forEach(line=>{
     const rowEl = document.createElement('div'); rowEl.className='keyrow';
-    [...line].forEach(ch=>{
+    line.forEach(ch=>{
       const b = document.createElement('button');
       b.className='key' + (ch==='ENTER'||ch==='⌫' ? ' wide':'');
       b.textContent = ch==='⌫' ? '⌫' : ch;
@@ -75,29 +86,44 @@ function handleKey(key){
   if(key==='⌫') return backspace();
   if(/^[A-Z]$/.test(key)) addLetter(key);
 }
-function addLetter(ch){ if(col<5){ rows[row][col].textContent=ch; rows[row][col].classList.add('filled'); col++; } }
+function addLetter(ch){ if(col<maxLen){ rows[row][col].textContent=ch; rows[row][col].classList.add('filled'); col++; } }
 function backspace(){ if(col>0){ col--; rows[row][col].textContent=''; rows[row][col].classList.remove('filled'); } }
 function scoreGuess(guess){
-  const res = Array(5).fill('absent');
+  const res = Array(maxLen).fill('absent');
   const remaining = answer.split('');
-  for(let i=0;i<5;i++) if(guess[i]===answer[i]){ res[i]='correct'; remaining[i]=null; }
-  for(let i=0;i<5;i++) if(res[i]==='absent'){ const idx = remaining.indexOf(guess[i]); if(idx>-1){ res[i]='present'; remaining[idx]=null; } }
+  for(let i=0;i<maxLen;i++) if(guess[i]===answer[i]){ res[i]='correct'; remaining[i]=null; }
+  for(let i=0;i<maxLen;i++) if(res[i]==='absent'){ const idx = remaining.indexOf(guess[i]); if(idx>-1){ res[i]='present'; remaining[idx]=null; } }
   return res;
 }
-function paintRow(guess){
+function revealRow(guess){
   const res = scoreGuess(guess);
-  res.forEach((s,i)=> rows[row][i].classList.add(s));
+  res.forEach((s,i)=>setTimeout(()=>rows[row][i].classList.add(s), i*180));
 }
 function submit(){
-  if(col<5) return setMsg('Not enough letters');
+  if(col<maxLen) return setMsg('Not enough letters');
   const guess = rows[row].map(t=>t.textContent).join('');
   if(!WORDS.includes(guess)) return setMsg('Not in word list');
-  paintRow(guess);
-  if(guess===answer){ over=true; return setMsg('You won! The word was ' + answer); }
+  setMsg('');
+  revealRow(guess);
+  if(guess===answer){
+    over=true;
+    return setTimeout(()=>setMsg('You won! The name was ' + answer), maxLen*180+100);
+  }
   row++; col=0;
-  if(row===6){ over=true; setMsg('Game over. The word was ' + answer); }
-  else setMsg('');
+  if(row===6){
+    over=true;
+    return setTimeout(()=>setMsg('Game over. The name was ' + answer), maxLen*180+100);
+  }
 }
+function newGame(){
+  const pick = WORDS[Math.floor(Math.random()*WORDS.length)];
+  answer = pick;
+  maxLen = answer.length;
+  row = 0; col = 0; over = false;
+  setMsg('');
+  makeBoard();
+}
+refreshBtn.onclick = newGame;
 document.addEventListener('keydown', e=>{
   if(e.key==='Enter') handleKey('ENTER');
   else if(e.key==='Backspace') handleKey('⌫');
