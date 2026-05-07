@@ -88,19 +88,14 @@
     .tile.present { background-color: var(--present) !important; border-color: var(--present) !important; color: white; }
     .tile.absent  { background-color: var(--absent) !important; border-color: var(--absent) !important; color: white; }
 
-    /* CLICK FEEDBACK FOR ALL BUTTONS */
     .btn, .key {
       cursor: pointer;
       transition: transform 0.1s ease, background-color 0.1s ease, filter 0.1s ease;
     }
 
     .btn:active, .key:active {
-      transform: scale(0.95); /* Shrink slightly on click */
-      filter: brightness(0.7); /* Darken significantly on click */
-    }
-
-    .btn:hover, .key:hover {
-      filter: brightness(1.1); /* Slight glow on hover */
+      transform: scale(0.95);
+      filter: brightness(0.7);
     }
 
     #keyboard { width: 100%; max-width: 500px; padding: 0 8px; display: flex; flex-direction: column; gap: 8px; }
@@ -127,10 +122,13 @@
     .btn { padding: 10px 16px; border-radius: 8px; border: none; font-weight: 700; }
     .btn-primary { background: var(--correct); color: white; }
     .btn-secondary { background: var(--key-bg); color: var(--key-text); }
+    .btn-danger { background: #e74c3c; color: white; margin-top: 10px; width: 100%; }
     
     .search-box { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg); color: var(--text); }
-    #word-list { max-height: 200px; overflow-y: auto; text-align: left; list-style: none; margin: 10px 0; }
-    .word-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--panel-border); }
+    #word-list { max-height: 200px; overflow-y: auto; text-align: left; list-style: none; margin: 10px 0; border: 1px solid var(--panel-border); border-radius: 8px; }
+    .word-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--panel-border); }
+    .word-item:last-child { border-bottom: none; }
+    
     #toast-container { position: fixed; top: 80px; z-index: 3000; pointer-events: none; }
     .toast { background: #333; color: white; padding: 10px 20px; border-radius: 4px; margin-bottom: 5px; animation: fadeInOut 2s; }
     @keyframes fadeInOut { 0% { opacity: 0; } 10%, 90% { opacity: 1; } 100% { opacity: 0; } }
@@ -173,11 +171,14 @@
       </div>
       <div id="admin-main-screen" style="display:none">
         <h2>Edit Names</h2>
-        <input type="text" id="name-search" class="search-box" placeholder="Search...">
-        <input type="text" id="new-word-input" class="search-box" placeholder="Add Name" maxlength="12">
-        <button id="add-word-btn" class="btn btn-primary">Add/Save</button>
+        <input type="text" id="name-search" class="search-box" placeholder="Search names...">
+        <div style="display: flex; gap: 5px;">
+          <input type="text" id="new-word-input" class="search-box" placeholder="Add New Name" maxlength="12">
+          <button id="add-word-btn" class="btn btn-primary" style="margin: 10px 0;">Add</button>
+        </div>
         <ul id="word-list"></ul>
-        <button class="btn btn-secondary" onclick="closeModal('admin-overlay')">Close & Lock</button>
+        <button class="btn btn-danger" id="reset-words-btn">Reset to Defaults</button>
+        <button class="btn btn-secondary" style="width:100%; margin-top:10px" onclick="closeModal('admin-overlay')">Close & Lock</button>
       </div>
     </div>
   </div>
@@ -198,14 +199,17 @@
     let lastAnswer = null;
 
     function initGame() {
+      if (WORDS.length === 0) WORDS = [...DEFAULT_WORDS];
+      
       let newAnswer;
       if (WORDS.length > 1) {
         do {
           newAnswer = WORDS[Math.floor(Math.random() * WORDS.length)].toUpperCase();
         } while (newAnswer === lastAnswer);
       } else {
-        newAnswer = WORDS[0] ? WORDS[0].toUpperCase() : "GAME";
+        newAnswer = WORDS[0].toUpperCase();
       }
+      
       lastAnswer = newAnswer;
       answer = newAnswer;
       wordLen = answer.length;
@@ -242,6 +246,7 @@
       if (gameOver) return;
       if (key === "ENTER") {
         if (currentGuess.length === wordLen) submitGuess();
+        else showToast("Too short");
       } else if (key === "⌫" || key === "BACKSPACE") {
         if (currentGuess.length > 0) {
           currentGuess = currentGuess.slice(0, -1);
@@ -284,6 +289,15 @@
       }, waitTime);
     }
 
+    function showToast(msg) {
+      const t = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      t.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }
+
     function createConfetti() {
       for(let i=0; i<50; i++) {
         const c = document.createElement('div');
@@ -322,7 +336,68 @@
       showModal('game-modal');
     }
 
-    document.getElementById('edit-btn').onclick = () => showModal('admin-overlay');
+    // --- ADMIN LOGIC ---
+
+    function renderList(filter = "") {
+      const listEl = document.getElementById('word-list');
+      listEl.innerHTML = "";
+      const filtered = WORDS.filter(w => w.includes(filter.toUpperCase()));
+      
+      filtered.forEach((word) => {
+        const li = document.createElement('li');
+        li.className = "word-item";
+        li.innerHTML = `
+          <span>${word}</span>
+          <div style="display:flex; gap:5px;">
+            <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem;" onclick="editWord('${word}')">Edit</button>
+            <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.8rem; color:red;" onclick="deleteWord('${word}')">Del</button>
+          </div>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+
+    function editWord(oldWord) {
+      const newWord = prompt("Edit name:", oldWord);
+      if (newWord && newWord.trim() !== "") {
+        const idx = WORDS.indexOf(oldWord);
+        if (idx !== -1) {
+          WORDS[idx] = newWord.toUpperCase().trim();
+          saveAndRefresh();
+        }
+      }
+    }
+
+    function deleteWord(word) {
+      if (confirm(`Delete "${word}"?`)) {
+        WORDS = WORDS.filter(w => w !== word);
+        saveAndRefresh();
+      }
+    }
+
+    function saveAndRefresh() {
+      localStorage.setItem("cruzdle_words", JSON.stringify(WORDS));
+      renderList(document.getElementById('name-search').value);
+      initGame(); // Re-init board in case current answer was deleted
+    }
+
+    document.getElementById('reset-words-btn').onclick = () => {
+      if (confirm("Restore all default names? Your custom names will be removed.")) {
+        WORDS = [...DEFAULT_WORDS];
+        saveAndRefresh();
+      }
+    };
+
+    document.getElementById('add-word-btn').onclick = () => {
+      const inp = document.getElementById('new-word-input');
+      const val = inp.value.toUpperCase().trim();
+      if (val && !WORDS.includes(val)) {
+        WORDS.push(val);
+        inp.value = "";
+        saveAndRefresh();
+      }
+    };
+
     document.getElementById('login-submit-btn').onclick = () => {
       const inp = document.getElementById('admin-pass-input');
       if (inp.value === EDIT_CODE) {
@@ -330,44 +405,23 @@
         document.getElementById('admin-main-screen').style.display = 'block';
         renderList();
       } else {
-        const t = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.textContent = "Invalid Password! ❌";
-        t.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
+        showToast("Invalid Password! ❌");
         inp.value = "";
       }
     };
 
-    function renderList(f = "") {
-      const l = document.getElementById('word-list');
-      l.innerHTML = "";
-      WORDS.filter(w => w.includes(f.toUpperCase())).forEach((w, i) => {
-        const item = document.createElement('li');
-        item.className = "word-item";
-        item.innerHTML = `${w} <button class="btn btn-secondary" style="padding:2px 8px" onclick="WORDS.splice(WORDS.indexOf('${w}'),1); save()">Delete</button>`;
-        l.appendChild(item);
-      });
-    }
+    // --- EVENT LISTENERS ---
 
-    function save() {
-      localStorage.setItem("cruzdle_words", JSON.stringify(WORDS));
-      renderList();
-      initGame();
-    }
-
-    document.getElementById('add-word-btn').onclick = () => {
-      const val = document.getElementById('new-word-input').value.toUpperCase().trim();
-      if (val && !WORDS.includes(val)) { WORDS.push(val); document.getElementById('new-word-input').value = ""; save(); }
-    };
-
+    document.getElementById('edit-btn').onclick = () => showModal('admin-overlay');
     document.getElementById('theme-toggle').onclick = () => document.body.classList.toggle('dark-mode');
     document.getElementById('manual-new-game').onclick = () => initGame();
     document.getElementById('name-search').oninput = (e) => renderList(e.target.value);
 
     window.addEventListener("keydown", (e) => {
-      if (document.activeElement.tagName !== "INPUT") handleInput(e.key.toUpperCase());
+      if (document.activeElement.tagName !== "INPUT") {
+        if (e.key === "Backspace") handleInput("⌫");
+        else handleInput(e.key.toUpperCase());
+      }
     });
 
     initGame();
