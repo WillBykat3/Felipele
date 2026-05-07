@@ -1,181 +1,376 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Cruzdle</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #f0f0f0; }
-        #board { margin: 20px; }
-        .row { display: flex; justify-content: center; margin: 5px; font-size: 2em; font-weight: bold; min-height: 60px; }
-        .tile { width: 60px; height: 60px; margin: 2px; display: flex; align-items: center; justify-content: center; border: 2px solid #ccc; background: white; }
-        .green { background: #6aaa64; color: white; }
-        .yellow { background: #c9b458; color: white; }
-        .gray { background: #787c7e; color: white; }
-        #keyboard { margin: 20px; }
-        .keyrow { display: flex; justify-content: center; margin: 5px; }
-        .key { min-width: 40px; height: 50px; margin: 2px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; background: #d3d6da; color: black; }
-        .key.green { background: #6aaa64; color: white; }
-        .key.yellow { background: #c9b458; color: white; }
-        .key.gray { background: #787c7e; color: white; }
-        .key.wide { flex: 1; min-width: 60px; font-size: 0.8em; }
-        #message { font-size: 1.2em; margin: 10px; }
-        input { display: none; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cruzdle</title>
+  <link href="https://fonts.googleapis.com/css2?family=Clear+Sans:wght@400;700&family=Archivo+Black&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --tile-bg: #ffffff;
+      --tile-border: #d3d6da;
+      --tile-border-filled: #878a8c;
+      --correct: #6aaa64;
+      --present: #c9b458;
+      --absent: #787c7e;
+      --text: #1a1a1b;
+      --key-bg: #d3d6da;
+      --key-text: #1a1a1b;
+      --header-border: #d3d6da;
+      --panel-bg: #f6f7f8;
+      --panel-border: #d3d6da;
+      --overlay: rgba(255, 255, 255, 0.9);
+    }
+
+    body.dark-mode {
+      --bg: #121213;
+      --tile-bg: #121213;
+      --tile-border: #3a3a3c;
+      --tile-border-filled: #565758;
+      --correct: #538d4e;
+      --present: #b59f3b;
+      --absent: #3a3a3c;
+      --text: #ffffff;
+      --key-bg: #818384;
+      --key-text: #ffffff;
+      --header-border: #3a3a3c;
+      --panel-bg: #202124;
+      --panel-border: #3a3a3c;
+      --overlay: rgba(0,0,0,0.85);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Clear Sans', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      transition: background 0.4s ease;
+      overflow-x: hidden;
+    }
+
+    header {
+      width: 100%;
+      max-width: 500px;
+      border-bottom: 1px solid var(--header-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 15px;
+    }
+
+    header h1 { font-family: 'Archivo Black', sans-serif; font-size: 1.8rem; }
+
+    #board { display: grid; gap: 5px; margin: 20px 0; }
+    
+    .tile {
+      width: 58px; height: 58px; border: 2px solid var(--tile-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; font-weight: 700; text-transform: uppercase;
+      font-family: 'Archivo Black', sans-serif;
+      background-color: var(--tile-bg);
+    }
+
+    .tile.flip { animation: flip 0.7s ease-in-out forwards; }
+    @keyframes flip {
+      0% { transform: rotateX(0); }
+      45% { transform: rotateX(-90deg); }
+      55% { transform: rotateX(-90deg); }
+      100% { transform: rotateX(0); }
+    }
+
+    .tile.correct { background-color: var(--correct) !important; border-color: var(--correct) !important; color: white; }
+    .tile.present { background-color: var(--present) !important; border-color: var(--present) !important; color: white; }
+    .tile.absent  { background-color: var(--absent) !important; border-color: var(--absent) !important; color: white; }
+
+    /* CLICK FEEDBACK FOR ALL BUTTONS */
+    .btn, .key {
+      cursor: pointer;
+      transition: transform 0.1s ease, background-color 0.1s ease, filter 0.1s ease;
+    }
+
+    .btn:active, .key:active {
+      transform: scale(0.95); /* Shrink slightly on click */
+      filter: brightness(0.7); /* Darken significantly on click */
+    }
+
+    .btn:hover, .key:hover {
+      filter: brightness(1.1); /* Slight glow on hover */
+    }
+
+    #keyboard { width: 100%; max-width: 500px; padding: 0 8px; display: flex; flex-direction: column; gap: 8px; }
+    .key-row { display: flex; justify-content: center; gap: 6px; }
+    .key {
+      height: 58px; min-width: 40px; border-radius: 4px; border: none;
+      background: var(--key-bg); color: var(--key-text); font-weight: 700;
+    }
+    .key.wide { min-width: 65px; }
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: var(--overlay);
+      z-index: 2000; align-items: center; justify-content: center;
+      padding: 20px; opacity: 0; transition: opacity 0.4s ease;
+    }
+    .modal-overlay.active { display: flex; opacity: 1; }
+    .modal-content {
+      background: var(--panel-bg); padding: 30px; border-radius: 16px;
+      text-align: center; max-width: 440px; width: 100%; border: 1px solid var(--panel-border);
+      transform: scale(0.8); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .modal-overlay.active .modal-content { transform: scale(1); }
+
+    .btn { padding: 10px 16px; border-radius: 8px; border: none; font-weight: 700; }
+    .btn-primary { background: var(--correct); color: white; }
+    .btn-secondary { background: var(--key-bg); color: var(--key-text); }
+    
+    .search-box { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid var(--panel-border); background: var(--bg); color: var(--text); }
+    #word-list { max-height: 200px; overflow-y: auto; text-align: left; list-style: none; margin: 10px 0; }
+    .word-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--panel-border); }
+    #toast-container { position: fixed; top: 80px; z-index: 3000; pointer-events: none; }
+    .toast { background: #333; color: white; padding: 10px 20px; border-radius: 4px; margin-bottom: 5px; animation: fadeInOut 2s; }
+    @keyframes fadeInOut { 0% { opacity: 0; } 10%, 90% { opacity: 1; } 100% { opacity: 0; } }
+
+    .confetti { position: absolute; width: 10px; height: 10px; animation: fall 3s ease-out forwards; z-index: 5000; }
+    @keyframes fall {
+      0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+  </style>
 </head>
 <body>
-    <h1>🟥🟨⬜ CRUZDLE</h1>
-    <p>6 tries to guess the name!</p>
-    <div id="board"></div>
-    <div id="message">Click keys or type to guess.</div>
-    <div id="keyboard">
-        <div class="keyrow">
-            <button class="key" data-key="Q">Q</button><button class="key" data-key="W">W</button><button class="key" data-key="E">E</button><button class="key" data-key="R">R</button><button class="key" data-key="T">T</button><button class="key" data-key="Y">Y</button><button class="key" data-key="U">U</button><button class="key" data-key="I">I</button><button class="key" data-key="O">O</button><button class="key" data-key="P">P</button>
-        </div>
-        <div class="keyrow">
-            <button class="key" data-key="A">A</button><button class="key" data-key="S">S</button><button class="key" data-key="D">D</button><button class="key" data-key="F">F</button><button class="key" data-key="G">G</button><button class="key" data-key="H">H</button><button class="key" data-key="J">J</button><button class="key" data-key="K">K</button><button class="key" data-key="L">L</button>
-        </div>
-        <div class="keyrow">
-            <button class="key wide" data-key="ENTER">ENTER</button>
-            <button class="key" data-key="Z">Z</button><button class="key" data-key="X">X</button><button class="key" data-key="C">C</button><button class="key" data-key="V">V</button><button class="key" data-key="B">B</button><button class="key" data-key="N">N</button><button class="key" data-key="M">M</button>
-            <button class="key wide" data-key="BACK">⌫</button>
-        </div>
+
+  <header>
+    <h1>Cruzdle</h1>
+    <div style="display: flex; gap: 5px;">
+      <button class="btn btn-secondary" id="theme-toggle">🌓</button>
+      <button class="btn btn-secondary" id="edit-btn">Edit</button>
     </div>
+  </header>
 
-    <script>
-        const answers = ['Joey', 'Amzie', 'Bailey', 'Wand', 'Cat', 'Sophia', 'Maya', 'Taylor', 'Mia'];
-        let secretWord = answers[Math.floor(Math.random() * answers.length)].toUpperCase();
-        const maxTries = 6;
-        let currentRow = 0;
-        let currentCol = 0;
-        let gameOver = false;
-        let won = false;
+  <div id="toast-container"></div>
+  <div id="board"></div>
 
-        const board = document.getElementById('board');
-        const message = document.getElementById('message');
+  <div id="keyboard">
+    <div class="key-row" id="row1"></div>
+    <div class="key-row" id="row2"></div>
+    <div class="key-row" id="row3"></div>
+  </div>
 
-        // Create board
-        for (let i = 0; i < maxTries; i++) {
-            const row = document.createElement('div');
-            row.className = 'row';
-            for (let j = 0; j < secretWord.length; j++) {
-                const tile = document.createElement('div');
-                tile.className = 'tile';
-                row.appendChild(tile);
-            }
-            board.appendChild(row);
-        }
+  <button id="manual-new-game" class="btn btn-primary" style="margin-top: 20px; padding: 15px 40px;">New Game</button>
 
-        const rows = board.querySelectorAll('.row');
-        const keyColors = {};
+  <div id="admin-overlay" class="modal-overlay">
+    <div class="modal-content">
+      <div id="admin-login-screen">
+        <h2>Admin Login</h2>
+        <input type="password" id="admin-pass-input" class="search-box" placeholder="Password">
+        <button class="btn btn-primary" id="login-submit-btn">Login</button>
+        <button class="btn btn-secondary" onclick="closeModal('admin-overlay')">Cancel</button>
+      </div>
+      <div id="admin-main-screen" style="display:none">
+        <h2>Edit Names</h2>
+        <input type="text" id="name-search" class="search-box" placeholder="Search...">
+        <input type="text" id="new-word-input" class="search-box" placeholder="Add Name" maxlength="12">
+        <button id="add-word-btn" class="btn btn-primary">Add/Save</button>
+        <ul id="word-list"></ul>
+        <button class="btn btn-secondary" onclick="closeModal('admin-overlay')">Close & Lock</button>
+      </div>
+    </div>
+  </div>
 
-        // Keyboard click handlers
-        document.querySelectorAll('.key').forEach(key => {
-            key.addEventListener('click', () => {
-                handleKey(key.dataset.key);
-            });
+  <div id="game-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h2 id="modal-title"></h2>
+      <p id="modal-msg" style="margin: 20px 0;"></p>
+      <button class="btn btn-primary" onclick="initGame(); closeModal('game-modal')">Play Again</button>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_WORDS = ["JOEY","AMZIE","BAILEY","WAND","CAT","SOPHIA","MAYA","TAYLOR","MIA"];
+    const EDIT_CODE = "LARP";
+    let WORDS = JSON.parse(localStorage.getItem("cruzdle_words")) || [...DEFAULT_WORDS];
+    let answer, wordLen, currentRow, currentGuess, gameOver;
+    let lastAnswer = null;
+
+    function initGame() {
+      let newAnswer;
+      if (WORDS.length > 1) {
+        do {
+          newAnswer = WORDS[Math.floor(Math.random() * WORDS.length)].toUpperCase();
+        } while (newAnswer === lastAnswer);
+      } else {
+        newAnswer = WORDS[0] ? WORDS[0].toUpperCase() : "GAME";
+      }
+      lastAnswer = newAnswer;
+      answer = newAnswer;
+      wordLen = answer.length;
+      currentRow = 0; currentGuess = ""; gameOver = false;
+      
+      const board = document.getElementById("board");
+      board.innerHTML = "";
+      board.style.gridTemplateColumns = `repeat(${wordLen}, 58px)`;
+      for (let i = 0; i < 6 * wordLen; i++) {
+        const tile = document.createElement("div");
+        tile.className = "tile";
+        tile.id = `tile-${Math.floor(i/wordLen)}-${i%wordLen}`;
+        board.appendChild(tile);
+      }
+      buildKeyboard();
+    }
+
+    function buildKeyboard() {
+      const rows = ["QWERTYUIOP".split(""), "ASDFGHJKL".split(""), ["ENTER", ..."ZXCVBNM".split(""), "⌫"]];
+      const ids = ["row1", "row2", "row3"];
+      ids.forEach((id, i) => {
+        const el = document.getElementById(id); el.innerHTML = "";
+        rows[i].forEach(key => {
+          const btn = document.createElement("button");
+          btn.textContent = key;
+          btn.className = "key" + (key.length > 1 ? " wide" : "");
+          btn.onclick = () => handleInput(key);
+          el.appendChild(btn);
         });
+      });
+    }
 
-        // Typing support
-        document.addEventListener('keydown', (e) => {
-            if (gameOver) return;
-            if (e.key.length === 1 && e.key.match(/[A-Z]/i)) {
-                handleKey(e.key.toUpperCase());
-            } else if (e.key === 'Enter') {
-                handleKey('ENTER');
-            } else if (e.key === 'Backspace') {
-                handleKey('BACK');
-            }
-        });
-
-        function handleKey(key) {
-            if (gameOver) return;
-
-            if (key === 'ENTER') {
-                if (currentCol === secretWord.length) {
-                    const guess = getCurrentGuess();
-                    if (isValidWord(guess)) {  // Always valid since list-based
-                        updateBoard(guess);
-                        currentRow++;
-                        currentCol = 0;
-                        if (guess === secretWord) {
-                            won = true;
-                            gameOver = true;
-                            message.textContent = `You won! 🎉 The word was ${secretWord}`;
-                        } else if (currentRow === maxTries) {
-                            gameOver = true;
-                            message.textContent = `Game over! The word was ${secretWord}`;
-                        } else {
-                            message.textContent = 'Next guess...';
-                        }
-                    } else {
-                        message.textContent = `Not a valid name! (${secretWord.length} letters)`;
-                        setTimeout(() => { message.textContent = 'Try again.'; }, 1000);
-                    }
-                }
-            } else if (key === 'BACK') {
-                if (currentCol > 0) {
-                    currentCol--;
-                    rows[currentRow].children[currentCol].textContent = '';
-                    rows[currentRow].children[currentCol].className = 'tile';
-                }
-            } else if (/^[A-Z]$/.test(key) && currentCol < secretWord.length) {
-                rows[currentRow].children[currentCol].textContent = key;
-                currentCol++;
-            }
+    function handleInput(key) {
+      if (gameOver) return;
+      if (key === "ENTER") {
+        if (currentGuess.length === wordLen) submitGuess();
+      } else if (key === "⌫" || key === "BACKSPACE") {
+        if (currentGuess.length > 0) {
+          currentGuess = currentGuess.slice(0, -1);
+          document.getElementById(`tile-${currentRow}-${currentGuess.length}`).textContent = "";
         }
+      } else if (currentGuess.length < wordLen && /^[A-Z]$/.test(key)) {
+        document.getElementById(`tile-${currentRow}-${currentGuess.length}`).textContent = key;
+        currentGuess += key;
+      }
+    }
 
-        function getCurrentGuess() {
-            let guess = '';
-            for (let i = 0; i < secretWord.length; i++) {
-                guess += rows[currentRow].children[i].textContent;
-            }
-            return guess;
+    function submitGuess() {
+      const result = Array(wordLen).fill("absent");
+      const ansArr = answer.split("");
+      const guessArr = currentGuess.split("");
+
+      guessArr.forEach((l, i) => { if (l === ansArr[i]) { result[i] = "correct"; ansArr[i] = null; } });
+      guessArr.forEach((l, i) => { if (result[i] === "absent" && ansArr.includes(l)) { result[i] = "present"; ansArr[ansArr.indexOf(l)] = null; } });
+
+      result.forEach((state, i) => {
+        const tile = document.getElementById(`tile-${currentRow}-${i}`);
+        setTimeout(() => {
+          tile.classList.add("flip");
+          setTimeout(() => { tile.classList.add(state); }, 350); 
+        }, i * 300);
+      });
+
+      const won = currentGuess === answer;
+      const waitTime = (wordLen * 300) + 800;
+
+      setTimeout(() => {
+        if (won) {
+          createConfetti();
+          endGame(true);
+        } else if (currentRow === 5) {
+          endGame(false);
+        } else {
+          currentRow++; currentGuess = "";
         }
+      }, waitTime);
+    }
 
-        function isValidWord(guess) {
-            return guess.length === secretWord.length;
+    function createConfetti() {
+      for(let i=0; i<50; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.style.left = Math.random() * 100 + 'vw';
+        c.style.background = ["#6aaa64", "#c9b458", "#ff0000", "#00fbff"][Math.floor(Math.random()*4)];
+        c.style.animationDelay = Math.random() * 2 + 's';
+        document.body.appendChild(c);
+        setTimeout(() => c.remove(), 4000);
+      }
+    }
+
+    function showModal(id) {
+      const m = document.getElementById(id);
+      m.style.display = 'flex';
+      setTimeout(() => m.classList.add('active'), 10);
+    }
+
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      m.classList.remove('active');
+      setTimeout(() => {
+        m.style.display = 'none';
+        if (id === 'admin-overlay') {
+          document.getElementById('admin-login-screen').style.display = 'block';
+          document.getElementById('admin-main-screen').style.display = 'none';
+          document.getElementById('admin-pass-input').value = "";
         }
+      }, 400);
+    }
 
-        function updateBoard(guess) {
-            const rowTiles = rows[currentRow].children;
+    function endGame(win) {
+      gameOver = true;
+      document.getElementById('modal-title').textContent = win ? "Magnificent! ✨" : "Good Try";
+      document.getElementById('modal-msg').textContent = `The name was: ${answer}`;
+      showModal('game-modal');
+    }
 
-            // Update keyboard colors
-            const secretCount = {};
-            for (let char of secretWord) {
-                secretCount[char] = (secretCount[char] || 0) + 1;
-            }
+    document.getElementById('edit-btn').onclick = () => showModal('admin-overlay');
+    document.getElementById('login-submit-btn').onclick = () => {
+      const inp = document.getElementById('admin-pass-input');
+      if (inp.value === EDIT_CODE) {
+        document.getElementById('admin-login-screen').style.display = 'none';
+        document.getElementById('admin-main-screen').style.display = 'block';
+        renderList();
+      } else {
+        const t = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = "Invalid Password! ❌";
+        t.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+        inp.value = "";
+      }
+    };
 
-            for (let i = 0; i < guess.length; i++) {
-                const char = guess[i];
-                const tile = rowTiles[i];
+    function renderList(f = "") {
+      const l = document.getElementById('word-list');
+      l.innerHTML = "";
+      WORDS.filter(w => w.includes(f.toUpperCase())).forEach((w, i) => {
+        const item = document.createElement('li');
+        item.className = "word-item";
+        item.innerHTML = `${w} <button class="btn btn-secondary" style="padding:2px 8px" onclick="WORDS.splice(WORDS.indexOf('${w}'),1); save()">Delete</button>`;
+        l.appendChild(item);
+      });
+    }
 
-                if (char === secretWord[i]) {
-                    tile.className = 'tile green';
-                    secretCount[char]--;
-                    setKeyColor(char, 'green');
-                }
-            }
+    function save() {
+      localStorage.setItem("cruzdle_words", JSON.stringify(WORDS));
+      renderList();
+      initGame();
+    }
 
-            for (let i = 0; i < guess.length; i++) {
-                const char = guess[i];
-                const tile = rowTiles[i];
-                if (tile.className !== 'tile green' && secretCount[char] > 0) {
-                    tile.className = 'tile yellow';
-                    secretCount[char]--;
-                    setKeyColor(char, 'yellow');
-                } else if (tile.className === 'tile') {
-                    tile.className = 'tile gray';
-                    setKeyColor(char, 'gray');
-                }
-            }
-        }
+    document.getElementById('add-word-btn').onclick = () => {
+      const val = document.getElementById('new-word-input').value.toUpperCase().trim();
+      if (val && !WORDS.includes(val)) { WORDS.push(val); document.getElementById('new-word-input').value = ""; save(); }
+    };
 
-        function setKeyColor(char, color) {
-            if (keyColors[char] === 'green') return;
-            keyColors[char] = color;
-            document.querySelectorAll(`[data-key="${char}"]`).forEach(k => {
-                k.className = `key ${color}`;
-            });
-        }
-    </script>
+    document.getElementById('theme-toggle').onclick = () => document.body.classList.toggle('dark-mode');
+    document.getElementById('manual-new-game').onclick = () => initGame();
+    document.getElementById('name-search').oninput = (e) => renderList(e.target.value);
+
+    window.addEventListener("keydown", (e) => {
+      if (document.activeElement.tagName !== "INPUT") handleInput(e.key.toUpperCase());
+    });
+
+    initGame();
+  </script>
 </body>
 </html>
