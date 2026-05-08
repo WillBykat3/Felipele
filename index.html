@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cruzdle • Maxxle</title>
+  <title>WordleFG</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Archivo+Black&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,20 +34,18 @@
     }
     #cheat-banner.active { top: 0; }
 
-    /* UNIVERSAL INTERACTION */
     .btn, .key, .choice-btn, .icon-btn { 
       cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); border: none; outline: none;
     }
-    .choice-btn:hover, .btn:hover, .key:hover { background: #000 !important; color: #fff !important; }
     
-    /* MINIMIZE EFFECT */
+    .choice-btn:hover, .btn:hover { background: #000 !important; color: #fff !important; }
+    .key:hover { filter: brightness(0.8); }
+    
     .icon-btn:active, .choice-btn:active, .key:active { transform: scale(0.85); }
 
-    /* SPIN ANIMATION */
     .spin-once { animation: spin 0.6s ease-in-out; }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-    /* HEADER */
     header { 
       width: 100%; max-width: 500px; display: flex; align-items: center; 
       justify-content: space-between; padding: 15px; 
@@ -58,7 +56,6 @@
     .icon-btn { background: none; display: flex; align-items: center; justify-content: center; padding: 5px; }
     .icon-btn svg { fill: var(--icon-color); width: 22px; height: 22px; transition: fill 0.3s; }
 
-    /* SELECTION SCREEN */
     #selection-overlay {
       display: flex; position: fixed; inset: 0; background: var(--bg);
       z-index: 5000; align-items: center; justify-content: center; text-align: center;
@@ -70,7 +67,6 @@
       border-radius: 8px; font-size: 1.1rem;
     }
 
-    /* BOARD & SMOOTH REVEAL */
     #board { display: grid; gap: 5px; margin: 20px 0; perspective: 1000px; }
     .tile {
       width: 58px; height: 58px; border: 2px solid var(--tile-border);
@@ -80,7 +76,6 @@
     }
     .tile.filled { border-color: #878a8c; transform: scale(1.05); }
     
-    /* REVEAL ANIMATION */
     .reveal { animation: flipTile 0.6s forwards; }
     @keyframes flipTile {
       0% { transform: rotateX(0); }
@@ -92,7 +87,6 @@
     .present { background: var(--present) !important; color: white !important; border-color: var(--present) !important; }
     .absent  { background: var(--absent) !important; color: white !important; border-color: var(--absent) !important; }
 
-    /* KEYBOARD */
     #keyboard { width: 100%; max-width: 500px; padding: 0 8px 25px 8px; margin-top: auto; }
     .key-row { display: flex; justify-content: center; gap: 6px; margin-bottom: 8px; }
     .key { 
@@ -102,7 +96,6 @@
     }
     .key.wide { flex: 1.5; font-size: 0.75rem; }
 
-    /* MODALS */
     .modal-overlay { 
       display: none; position: fixed; inset: 0; 
       background: rgba(0,0,0,0.7); z-index: 6000; 
@@ -119,7 +112,21 @@
       color: var(--text); border-radius: 6px;
     }
     #word-list { max-height: 200px; overflow-y: auto; text-align: left; margin: 15px 0; border: 1px solid var(--tile-border); border-radius: 6px; }
-    .word-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid var(--tile-border); font-weight: 600; }
+    .word-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--tile-border); font-weight: 600; }
+    .item-actions { display: flex; gap: 10px; }
+    .action-btn { background: none; border: none; cursor: pointer; display: flex; align-items: center; padding: 5px; }
+    .action-btn svg { width: 16px; height: 16px; }
+    
+    .add-btn-small {
+      height: 40px;
+      padding: 0 15px;
+      border-radius: 6px;
+      background: var(--correct);
+      color: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -140,7 +147,9 @@
     <h1 id="game-title">WORDLE</h1>
     <div class="header-controls">
       <button class="icon-btn" onclick="animateSwitch(this)" title="Switch">
-        <svg id="switch-icon" viewBox="0 0 24 24"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.41 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM5 16l4-4H6c0-3.31-2.69-6-6 6-1.01 0-1.97.25-2.8.7l1.46-1.46C15.03 4.46 13.59 4 12 4c-4.42 0-8 3.58-8 8H1l4 4z"/></svg>
+        <svg id="switch-icon" viewBox="0 0 24 24">
+          <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+        </svg>
       </button>
       <button class="icon-btn" id="theme-toggle" title="Theme">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18l-.01-16c4.41 0 8 3.59 8 8s-3.59 8-8 8z"/></svg>
@@ -169,9 +178,9 @@
       </div>
       <div id="admin-editor" style="display:none">
         <h3 id="edit-title">EDIT LISTS</h3>
-        <div style="display:flex; gap:5px; margin-top:10px">
-            <input type="text" id="new-word" class="input-box" placeholder="Add name..." maxlength="12">
-            <button class="btn" style="padding:0 15px; border-radius:6px; background:var(--correct); color:white;" onclick="addWord()">ADD</button>
+        <div style="display:flex; gap:8px; align-items: center; margin-top: 10px;">
+            <input type="text" id="new-word" class="input-box" placeholder="Add name..." maxlength="12" style="margin:0;">
+            <button class="btn add-btn-small" onclick="addWord()">ADD</button>
         </div>
         <div id="word-list"></div>
         <div style="display:flex; gap:10px;">
@@ -202,8 +211,10 @@
       const svg = btn.querySelector('svg');
       svg.classList.add('spin-once');
       setTimeout(() => {
-        svg.classList.remove('spin-once');
         resetApp();
+      }, 300);
+      setTimeout(() => {
+        svg.classList.remove('spin-once');
       }, 600);
     }
 
@@ -290,10 +301,8 @@
         const tile = document.getElementById(`tile-${currentRow}-${i}`);
         const letter = guessArr[i];
         
-        // Smoother staggered reveal
         setTimeout(() => {
           tile.classList.add('reveal');
-          // Update color at the 50% point of flip
           setTimeout(() => {
             tile.classList.add(status);
             const keyBtn = document.getElementById(`key-${letter}`);
@@ -334,9 +343,19 @@
     }
     function renderList() {
       const list = document.getElementById('word-list'); list.innerHTML = "";
-      WORDS.forEach(w => {
+      WORDS.forEach((w, index) => {
         const div = document.createElement('div'); div.className = "word-item";
-        div.innerHTML = `<span>${w}</span><button onclick="delWord('${w}')" style="color:red; background:none; border:none; cursor:pointer">×</button>`;
+        div.innerHTML = `
+          <span>${w}</span>
+          <div class="item-actions">
+            <button class="action-btn" onclick="editWord(${index})" style="color:var(--absent)">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            </button>
+            <button class="action-btn" onclick="delWord('${w}')" style="color:red">
+              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+          </div>
+        `;
         list.appendChild(div);
       });
     }
@@ -345,6 +364,13 @@
       if(val && !WORDS.includes(val)) { WORDS.push(val); inp.value = ""; save(); }
     }
     function delWord(w) { WORDS = WORDS.filter(x => x !== w); save(); }
+    function editWord(index) {
+      const newVal = prompt("Edit name:", WORDS[index]);
+      if (newVal && newVal.trim() !== "") {
+        WORDS[index] = newVal.toUpperCase().trim();
+        save();
+      }
+    }
     function resetWords() {
       if(confirm("Restore names to original list?")) {
         WORDS = [...DEFAULTS[activeGame]];
