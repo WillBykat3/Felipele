@@ -140,7 +140,7 @@
     <h1 id="game-title">WORDLE</h1>
     <div class="header-controls">
       <button class="icon-btn" onclick="animateSwitch(this)" title="Switch">
-        <svg id="switch-icon" viewBox="0 0 24 24"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.41 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM5 16l4-4H6c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.59 4 12 4c-4.42 0-8 3.58-8 8H1l4 4z"/></svg>
+        <svg id="switch-icon" viewBox="0 0 24 24"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.41 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM5 16l4-4H6c0-3.31-2.69-6-6 6-1.01 0-1.97.25-2.8.7l1.46-1.46C15.03 4.46 13.59 4 12 4c-4.42 0-8 3.58-8 8H1l4 4z"/></svg>
       </button>
       <button class="icon-btn" id="theme-toggle" title="Theme">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18l-.01-16c4.41 0 8 3.59 8 8s-3.59 8-8 8z"/></svg>
@@ -168,13 +168,16 @@
         <button class="btn" style="margin-top:15px; background:none; color:var(--text)" onclick="closeModal('admin-overlay')">CANCEL</button>
       </div>
       <div id="admin-editor" style="display:none">
-        <h3 id="edit-title">MANAGE LIST</h3>
+        <h3 id="edit-title">EDIT LISTS</h3>
         <div style="display:flex; gap:5px; margin-top:10px">
             <input type="text" id="new-word" class="input-box" placeholder="Add name..." maxlength="12">
             <button class="btn" style="padding:0 15px; border-radius:6px; background:var(--correct); color:white;" onclick="addWord()">ADD</button>
         </div>
         <div id="word-list"></div>
-        <button class="choice-btn" style="width:100%" onclick="closeModal('admin-overlay')">DONE</button>
+        <div style="display:flex; gap:10px;">
+          <button class="choice-btn" style="flex:1; background: #787c7e; color: white; border: none;" onclick="resetWords()">RESET</button>
+          <button class="choice-btn" style="flex:1" onclick="closeModal('admin-overlay')">DONE</button>
+        </div>
       </div>
     </div>
   </div>
@@ -189,7 +192,7 @@
 
   <script>
     const DEFAULTS = {
-      cruzdle: ["JOEY", "AMZIE", "BAILEY", "WAND", "CAT", "SOPHIA", "MAYA", "TAYLOR", "MIA", "LILLY", "DAVIS"],
+      cruzdle: ["JOEY", "AMZIE", "BAILEY", "WAND", "CAT", "SOPHIA", "MAYA", "TAYLOR", "MIA", "LILLY", "DAVIS", "AMARA", "BREE", "JENNA"],
       maxxle: ["MAYA", "CAM", "DANI", "LIZ", "HANSEN", "LUCY", "VIVIENNE", "GEORGIA", "SASHA", "CAROLINE", "LYDIA", "RANDOM"]
     };
     let activeGame, WORDS, answer, wordLen, currentRow, currentGuess, gameOver, lastAnswer;
@@ -342,6 +345,12 @@
       if(val && !WORDS.includes(val)) { WORDS.push(val); inp.value = ""; save(); }
     }
     function delWord(w) { WORDS = WORDS.filter(x => x !== w); save(); }
+    function resetWords() {
+      if(confirm("Restore names to original list?")) {
+        WORDS = [...DEFAULTS[activeGame]];
+        save();
+      }
+    }
     function save() { localStorage.setItem(`words_${activeGame}`, JSON.stringify(WORDS)); renderList(); initGame(); }
     function closeModal(id) { 
         document.getElementById(id).style.display = 'none'; 
