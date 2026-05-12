@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WordleFG</title>
+  <title>Crackle</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Archivo+Black&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -51,7 +51,7 @@
       justify-content: space-between; padding: 15px; 
       border-bottom: 1px solid var(--tile-border); margin-bottom: 10px;
     }
-    header h1 { font-family: 'Archivo Black', sans-serif; font-size: 1.4rem; }
+    header h1 { font-family: 'Archivo Black', sans-serif; font-size: 1.4rem; font-weight: 900; }
     .header-controls { display: flex; gap: 15px; }
     .icon-btn { background: none; display: flex; align-items: center; justify-content: center; padding: 5px; }
     .icon-btn svg { fill: var(--icon-color); width: 22px; height: 22px; transition: fill 0.3s; }
@@ -144,7 +144,7 @@
   </div>
 
   <header>
-    <h1 id="game-title">WORDLE</h1>
+    <h1 id="game-title">CRACKLE</h1>
     <div class="header-controls">
       <button class="icon-btn" onclick="animateSwitch(this)" title="Switch">
         <svg id="switch-icon" viewBox="0 0 24 24">
@@ -195,56 +195,117 @@
     <div class="modal-content">
       <h2 id="modal-title" style="font-family:'Archivo Black'; font-size: 2rem; color: var(--correct);">Congrats!</h2>
       <p id="modal-msg" style="margin: 20px 0; font-size: 1.1rem;"></p>
-      <button class="choice-btn" style="width:100%; background:var(--correct); color:white; border:none" onclick="initGame(); closeModal('game-modal')">PLAY AGAIN</button>
+      <button class="choice-btn" style="width:100%; background:var(--correct); color:white; border:none" onclick="closeModal('game-modal')">SEE RESULTS</button>
     </div>
   </div>
 
   <script>
     const DEFAULTS = {
-      cruzdle: ["JOEY", "AMZIE", "BAILEY", "WAND", "CAT", "SOPHIA", "MAYA", "TAYLOR", "MIA", "LILLY", "DAVIS", "AMARA", "BREE", "JENNA"],
+      cruzdle: ["JOEY", "AMZIE", "BAILEY", "WAND", "CAT", "SOPHIA", "MAYA", "TAYLOR", "MIA", "LILLY", "DAVIS", "AMARA", "BREE", "JENNA", "IZZY"],
       maxxle: ["MAYA", "CAM", "DANI", "LIZ", "HANSEN", "LUCY", "VIVIENNE", "GEORGIA", "SASHA", "CAROLINE", "LYDIA", "RANDOM"]
     };
-    let activeGame, WORDS, answer, wordLen, currentRow, currentGuess, gameOver, lastAnswer;
+    let activeGame, WORDS, answer, wordLen, currentRow, currentGuess, gameOver;
     let inputHistory = "";
 
     function animateSwitch(btn) {
       const svg = btn.querySelector('svg');
       svg.classList.add('spin-once');
-      setTimeout(() => {
-        resetApp();
-      }, 300);
-      setTimeout(() => {
-        svg.classList.remove('spin-once');
-      }, 600);
+      setTimeout(() => { resetApp(); }, 300);
+      setTimeout(() => { svg.classList.remove('spin-once'); }, 600);
     }
 
     function selectGame(choice) {
       activeGame = choice;
       document.getElementById('selection-overlay').style.display = 'none';
+      const capitalized = choice.charAt(0).toUpperCase() + choice.slice(1);
+      document.title = `Crackle | ${capitalized}`;
       initGame();
     }
 
-    function resetApp() { document.getElementById('selection-overlay').style.display = 'flex'; }
+    function resetApp() { 
+      document.getElementById('selection-overlay').style.display = 'flex'; 
+      document.title = "Crackle";
+      document.getElementById('game-title').textContent = "CRACKLE";
+      document.getElementById('game-title').style.textAlign = "center";
+    }
 
     function initGame() {
-      const saved = localStorage.getItem(`words_${activeGame}`);
-      WORDS = saved ? JSON.parse(saved) : [...DEFAULTS[activeGame]];
-      document.getElementById('game-title').textContent = activeGame.toUpperCase();
+      const savedWords = localStorage.getItem(`words_${activeGame}`);
+      WORDS = savedWords ? JSON.parse(savedWords) : [...DEFAULTS[activeGame]];
       
-      let newAnswer;
-      do { newAnswer = WORDS[Math.floor(Math.random() * WORDS.length)].toUpperCase(); } while (newAnswer === lastAnswer && WORDS.length > 1);
-      answer = newAnswer; wordLen = answer.length;
-      currentRow = 0; currentGuess = ""; gameOver = false; lastAnswer = answer;
+      // Top Left Bold Gamemode
+      const titleEl = document.getElementById('game-title');
+      titleEl.textContent = activeGame.toUpperCase();
+      titleEl.parentElement.style.justifyContent = "space-between";
+      titleEl.style.margin = "0";
 
+      // Daily seed logic for word selection
+      const now = new Date();
+      const dateString = now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate();
+      const dateSeed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+      
+      const wordIndex = dateSeed % WORDS.length;
+      answer = WORDS[wordIndex].toUpperCase();
+      wordLen = answer.length;
+      
+      // Load or Reset Progress based on date
+      const progressKey = `progress_${activeGame}`;
+      const savedProgress = JSON.parse(localStorage.getItem(progressKey));
+      
+      if (savedProgress && savedProgress.date === dateString) {
+        currentRow = savedProgress.currentRow;
+        currentGuess = "";
+        gameOver = savedProgress.gameOver;
+        renderSavedBoard(savedProgress.guesses);
+        if (gameOver) endGame(savedProgress.won, true);
+      } else {
+        currentRow = 0;
+        currentGuess = "";
+        gameOver = false;
+        localStorage.setItem(progressKey, JSON.stringify({date: dateString, guesses: [], currentRow: 0, gameOver: false, won: false}));
+      }
+
+      if (!gameOver) {
+        const board = document.getElementById("board");
+        board.innerHTML = "";
+        board.style.gridTemplateColumns = `repeat(${wordLen}, 58px)`;
+        // Only 3 guesses allowed
+        for (let i = 0; i < 3 * wordLen; i++) {
+          const div = document.createElement("div");
+          div.className = "tile"; div.id = `tile-${Math.floor(i/wordLen)}-${i%wordLen}`;
+          board.appendChild(div);
+        }
+        buildKeyboard();
+      }
+    }
+
+    function renderSavedBoard(guesses) {
       const board = document.getElementById("board");
       board.innerHTML = "";
       board.style.gridTemplateColumns = `repeat(${wordLen}, 58px)`;
-      for (let i = 0; i < 6 * wordLen; i++) {
-        const div = document.createElement("div");
-        div.className = "tile"; div.id = `tile-${Math.floor(i/wordLen)}-${i%wordLen}`;
-        board.appendChild(div);
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < wordLen; c++) {
+          const div = document.createElement("div");
+          div.className = "tile";
+          div.id = `tile-${r}-${c}`;
+          if (guesses[r]) {
+            div.textContent = guesses[r].word[c];
+            div.classList.add(guesses[r].result[c]);
+          }
+          board.appendChild(div);
+        }
       }
       buildKeyboard();
+      // Color keys based on history
+      guesses.forEach(g => {
+        g.word.split('').forEach((letter, i) => {
+          const keyBtn = document.getElementById(`key-${letter}`);
+          if (keyBtn && !keyBtn.classList.contains('correct')) {
+            keyBtn.classList.remove('present', 'absent');
+            keyBtn.classList.add(g.result[i]);
+          }
+        });
+      });
     }
 
     function buildKeyboard() {
@@ -281,32 +342,29 @@
     }
 
     function triggerCheat() {
-      for (let i = 0; i < wordLen; i++) {
-        const t = document.getElementById(`tile-${currentRow}-${i}`);
-        t.textContent = ""; t.classList.remove("filled");
-      }
-      currentGuess = "";
-      const banner = document.getElementById('cheat-banner');
-      banner.textContent = answer; banner.classList.add('active');
-      setTimeout(() => banner.classList.remove('active'), 3000);
+        const banner = document.getElementById('cheat-banner');
+        banner.textContent = answer; banner.classList.add('active');
+        setTimeout(() => banner.classList.remove('active'), 3000);
     }
 
     function submitGuess() {
       const result = Array(wordLen).fill("absent"), ansArr = answer.split(""), guessArr = currentGuess.split("");
-      
       guessArr.forEach((l, i) => { if (l === ansArr[i]) { result[i] = "correct"; ansArr[i] = null; } });
       guessArr.forEach((l, i) => { if (result[i] === "absent" && ansArr.includes(l)) { result[i] = "present"; ansArr[ansArr.indexOf(l)] = null; } });
+
+      const progressKey = `progress_${activeGame}`;
+      const progress = JSON.parse(localStorage.getItem(progressKey));
+      progress.guesses.push({word: currentGuess, result: result});
 
       result.forEach((status, i) => {
         const tile = document.getElementById(`tile-${currentRow}-${i}`);
         const letter = guessArr[i];
-        
         setTimeout(() => {
           tile.classList.add('reveal');
           setTimeout(() => {
             tile.classList.add(status);
             const keyBtn = document.getElementById(`key-${letter}`);
-            if (!keyBtn.classList.contains('correct')) {
+            if (keyBtn && !keyBtn.classList.contains('correct')) {
               keyBtn.classList.remove('present', 'absent'); 
               keyBtn.classList.add(status);
             }
@@ -315,23 +373,35 @@
       });
 
       const winDelay = (wordLen * 150) + 600;
-      if (currentGuess === answer) setTimeout(() => endGame(true), winDelay);
-      else if (currentRow === 5) setTimeout(() => endGame(false), winDelay);
-      else { currentRow++; currentGuess = ""; }
+      if (currentGuess === answer) {
+        progress.gameOver = true; progress.won = true;
+        localStorage.setItem(progressKey, JSON.stringify(progress));
+        setTimeout(() => endGame(true), winDelay);
+      } else if (currentRow === 2) { // Max 3 guesses (0, 1, 2)
+        progress.gameOver = true; progress.won = false;
+        localStorage.setItem(progressKey, JSON.stringify(progress));
+        setTimeout(() => endGame(false), winDelay);
+      } else { 
+        currentRow++; currentGuess = ""; 
+        progress.currentRow = currentRow;
+        localStorage.setItem(progressKey, JSON.stringify(progress));
+      }
     }
 
-    function endGame(win) {
+    function endGame(win, silent = false) {
       gameOver = true;
       const modalTitle = document.getElementById('modal-title');
+      const modalMsg = document.getElementById('modal-msg');
       if (win) {
         modalTitle.textContent = "Congrats!";
         modalTitle.style.color = "var(--correct)";
+        modalMsg.textContent = "Come back tomorrow for more.";
       } else {
         modalTitle.textContent = "Next Time";
         modalTitle.style.color = "var(--absent)";
+        modalMsg.textContent = `The word was ${answer}`;
       }
-      document.getElementById('modal-msg').textContent = `The word was ${answer}`;
-      document.getElementById('game-modal').style.display = 'flex';
+      if (!silent) document.getElementById('game-modal').style.display = 'flex';
     }
 
     function checkPass() {
@@ -345,17 +415,7 @@
       const list = document.getElementById('word-list'); list.innerHTML = "";
       WORDS.forEach((w, index) => {
         const div = document.createElement('div'); div.className = "word-item";
-        div.innerHTML = `
-          <span>${w}</span>
-          <div class="item-actions">
-            <button class="action-btn" onclick="editWord(${index})" style="color:var(--absent)">
-              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-            </button>
-            <button class="action-btn" onclick="delWord('${w}')" style="color:red">
-              <svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </button>
-          </div>
-        `;
+        div.innerHTML = `<span>${w}</span><div class="item-actions"><button class="action-btn" onclick="editWord(${index})"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button><button class="action-btn" onclick="delWord('${w}')"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>`;
         list.appendChild(div);
       });
     }
@@ -366,17 +426,9 @@
     function delWord(w) { WORDS = WORDS.filter(x => x !== w); save(); }
     function editWord(index) {
       const newVal = prompt("Edit name:", WORDS[index]);
-      if (newVal && newVal.trim() !== "") {
-        WORDS[index] = newVal.toUpperCase().trim();
-        save();
-      }
+      if (newVal && newVal.trim() !== "") { WORDS[index] = newVal.toUpperCase().trim(); save(); }
     }
-    function resetWords() {
-      if(confirm("Restore names to original list?")) {
-        WORDS = [...DEFAULTS[activeGame]];
-        save();
-      }
-    }
+    function resetWords() { if(confirm("Restore names?")) { WORDS = [...DEFAULTS[activeGame]]; save(); } }
     function save() { localStorage.setItem(`words_${activeGame}`, JSON.stringify(WORDS)); renderList(); initGame(); }
     function closeModal(id) { 
         document.getElementById(id).style.display = 'none'; 
